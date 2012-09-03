@@ -68,7 +68,7 @@ endf
 fun! TPDisplayTasks(...)
    
     if a:0 == 0
-        let filter = g:filter
+        let filter = g:TPCurrentFilter
     else
         let filter = a:1
     endif
@@ -240,22 +240,35 @@ endf
 fun! TPSetupKeyMappings()
     call TPUnmapDefaultKeyMaps()
     call TPUnmapDefaultKeyCodes()
+    
     nmap <buffer> c   :call TPCompleteTask()<CR>
   
-     
-    nmap <buffer> +  :call TPUpdateTaskTagsWithPrompts()<CR>
-    nmap <buffer> .  :call TPRepeatLastLineCommand()<CR>
-    
-    nmap <buffer> a   :call TPAddTaskWithPrompts()<CR> 
-    nmap <buffer> t   :call TPDisplayTasksEnteredToday()<CR> 
-    nmap <buffer> f   :call TPUpdateFilter()<CR> 
-    nmap <buffer> H   :call TPSetPriorityHigh()<CR>
-    nmap <buffer> M   :call TPSetPriorityMedium()<CR>
-    nmap <buffer> L   :call TPSetPriorityLow()<CR>
-    nmap <buffer> N   :call TPSetPriorityNone()<CR>
-    
     nmap <buffer> u   :call TPUndo()<CR>
     nmap <buffer> d   :call TPDeleteTask()<CR>
+    nmap <buffer> .  :call TPRepeatLastLineCommand()<CR>  
+
+    "Tag manipulations
+    nmap <buffer> t+  :call TPUpdateTaskTagsWithPrompts()<CR>
+    
+    
+    "Adding new tasks
+    nmap <buffer> ap   :call TPAddTaskWithPrompts()<CR> 
+    
+    "Filter maps
+    nmap <buffer> ft   :call TPDisplayTasksEnteredToday()<CR> 
+    nmap <buffer> fu   :call TPUpdateFilter()<CR>              
+    
+    nmap <buffer> ph   :call TPSetPriorityHigh()<CR>
+    nmap <buffer> pm   :call TPSetPriorityMedium()<CR>
+    nmap <buffer> pl   :call TPSetPriorityLow()<CR>
+    nmap <buffer> pn   :call TPSetPriorityNone()<CR>
+   
+    "punch in
+    nmap <buffer> pi :call TPStartTask()<CR>
+    
+    "punch out
+    nmap <buffer> po :call TPStopCurrentlyRunningTask()<CR>
+
 
     "The only key map that is not buffer specific
 
@@ -349,12 +362,12 @@ fun! TPCustomCompleteTags(A, L, P)
 endf
 
 fun! TPUpdateFilter()
-    let g:filter = input("new filter: ", g:filter)
+    let g:TPCurrentFilter = input("new filter: ", g:TPCurrentFilter)
     call TPClearAndDisplayRetainPosition()
 endf
 
 fun! TPDisplayTasksEnteredToday()
-    let g:filter = "entry.after:today"
+    let g:TPCurrentFilter = "entry.after:today"
     call TPClearAndDisplay()
 endf 
 
@@ -432,16 +445,49 @@ fun! TPUndo()
     call TPIssueCommandAtCurrentLineAndRedisplay(template)
 endf
 
+fun! TPStatusLine()
+    
+    let runningtaskstring="[No task running at the moment]"
+    if g:TPCurrentlyRunningTask != 0
+        let runningtask = TPGetTasks(g:TPCurrentlyRunningTask)[0]
+        let runningtaskstring=printf("[*running task* %s]", runningtask["description"])
+    endif
+    return printf("[*filter* %s]%s[%s]",  g:TPCurrentFilter, runningtaskstring,  g:TPLastMessage)
+
+
+endf
+
+fun! TPStartTask()
+    let id = TPGetTaskID()
+
+    let cmd  =  "task " . id . " start"
+    let g:TPCurrentlyRunningTask = id
+    let waste = system(cmd)
+endf
+
+fun! TPStopCurrentlyRunningTask()
+    let cmd = "task " . g:TPCurrentlyRunningTask . " stop"
+    let g:TPCurrentlyRunningTask = 0
+    let waste = system(cmd)
+endf
+
 fun! TPInitialize(filter)
     "save the incoming filter to our global filter variable so that we 
     "can reapply it later
     "
     "append incoming filter to our default global filter
 
-    let g:filter =  g:TPDefaultFilter . " " .  a:filter
+    let g:TPCurrentFilter =  g:TPDefaultFilter . " " .  a:filter
+    let g:TPLastMessage = "Welcome to Taskpacifist"
+    let g:TPCurrentlyRunningTask = 0 
     call TPSetUpTasksBuffer()
     call TPSetupKeyMappings()    
-    call TPDisplayTasks(g:filter)
+    call TPDisplayTasks(g:TPCurrentFilter)
+
+    setlocal laststatus=2
+    setlocal statusline=%{TPStatusLine()}
+    
+    silent echom g:TPLastMessage
 endf
 
 let g:TPDefaultFilter = "status:pending -somedaymaybe"

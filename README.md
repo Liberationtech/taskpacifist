@@ -3,6 +3,15 @@ Taskpacifist
 
 A vim script for running taskwarrior.
 
+My tag prefixes
+
+ = project
+ 
+ % area of focus / area of responsability
+
+ $ client
+
+ @ context  
 
 Feature wishlist
 ================
@@ -16,16 +25,12 @@ really easy
   + make | darker
   + highlight current line
 
-
 + Delete a tag (autocomplete) from current task
 
 + Delete same tag as last time
 
 + display tags in list
 
-+ display current filter on modeline
-
-+ display matching tasks on modeline
  
 
 
@@ -58,8 +63,6 @@ a little harder
 
 + Expand/contract width off columns
 
-+ Display Nested lists, of arbitrary depth. First level might be project, next might by tag1, next might be tag2, next might be prio
-
 
 
 suitable tag prefix keys
@@ -81,50 +84,8 @@ subproject ¶¶
 
 priority !
 
-+
-
-
-swedish keyboard
-================
-
-§1234567890+´
-qwertyuiopå¨
-dfghjklöä'
-<zxcvbnm,.-
-
-shift
-°!"#€%&/()=?`
-QWERTYUIOPÅ^
-ASDFGHJKLÖÄ*
-ZXCVBNM;:_
-
-alt
-¶©@£$∞§|[]≈±´
-•Ωé®†µüıœπ˙~
-ß∂ƒ¸˛√ªﬁøæ™
-≤÷≈ç‹›‘’‚…–
-
-us keyboard
-===========
-
-§1234567890-=
-qwertyuiop[]
-asdfghjkl;'\
-`zxcvbnm,./
-
-shift
-±!@#$%^&*()_+
-QWERTYUIOP{}
-ASDFGHJKL:"|
-~ZXCVBNM<>?
-
-alt
-§¡™£¢∞§¶•ªº–≠
-åß∂ƒ©˙∆˚¬…æ«`Ω≈ç√∫˜µ≤≥÷
-
-alt shift
-±⁄€‹›ﬁﬂ‡°·‚—±
-Œ„´‰ˇÁ¨ˆØ∏”’
-ÅÍÎÏ˝ÓÔÒÚÆ
-¸˛Ç◊ı˜Â¯¯˘¿
+Not suitable
+- + used by taskwarrior to separate out tags from nontags
+| might confuse the shell
+: also part of taskwarrior syntax
 
