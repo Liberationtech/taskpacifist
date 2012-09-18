@@ -19,12 +19,23 @@ fun! TPSetUpTasksBuffer()
     "the task descriptions can be very long, turn of line wraping
     setlocal nowrap
 
+    setlocal nonumber
+    setlocal cursorline
+    execute "hi CursorLine   cterm=NONE ctermbg=darkred ctermfg=white guibg=darkred guifg=white"
+
+
+    
     "setlocal noswapfile
     "setlocal buflisted
 
     "delete the current contents of the tasks buffer 
     call TPClearTasksBuffer()
 
+endf
+
+fun! TPGetTasksWithCurrentFilter()
+
+    return TPGetTasks(g:TPCurrentFilter)
 endf
 
 fun! TPGetTasks(filter)
@@ -65,6 +76,121 @@ fun! TPTruncateString(str, len)
 
 endf
 
+fun! TPStrLen(str)
+    return len(split(a:str, '.\zs'))
+endf
+
+fun! TPStrPart(str, start, stop)
+    return join(split(a:str, '.\zs')[a:start : a:stop],"")
+endf
+
+
+fun! TPTruncateAndPadString(str, len, paddingchar)
+
+    "strlen doesn't deal that well with unicode chars, so we need to 
+    "run a substitue on the inputstr 
+    "http://tech.groups.yahoo.com/group/vimdev/mege/47905s    
+    "let lenOfInputString = strlen(substitute(a:str, '.\Z', 'x', 'g'))
+    let lenOfInputString = TPStrLen(a:str)
+    
+    "the string is to long and gets truncated
+    if lenOfInputString > a:len
+        let result = TPStrPart(a:str,0, a:len - 1)
+
+    "the string gets padded
+    elseif lenOfInputString < a:len
+
+        let padding = ""
+        let l:count = 0
+        let stop = a:len - lenOfInputString
+
+        while l:count < stop
+            let l:count = l:count + 1
+            let padding .= a:paddingchar
+        endwhile
+
+        let result = a:str . padding
+    "no action neccessary 
+    else
+        let result = a:str
+    end
+    return result
+
+endf
+
+fun! TPRemoveFromList(lst, element)
+    return  filter(copy(a:lst), "v:val != a:element")
+endf
+
+
+fun! TPInputTags(msg)
+
+    let done = 0
+    let result = []
+    while !done
+   
+        let newtag = input(a:msg, "", "custom,TPCustomCompleteTags")
+        if newtag == ""
+            let done = 1
+        else
+            call add(result, newtag)  
+        endif
+    endwhile
+
+    return result
+endf
+
+fun! TPUpdateFilterRequiredTagsAdd()
+
+    let tags = TPInputTags("add tag to require:")
+     
+    for tag in tags
+        let g:TPCurrentFilter .= printf(" +%s", tag)
+    endfor 
+
+    call TPClearAndDisplayRetainPosition()    
+endf
+
+
+fun! TPUpdateFilterRequiredTagsRemove()
+
+    let tags = TPInputTags("remove tag from required tags:")
+   
+    for tag in tags
+        let string_to_remove = printf("+%s", tag)
+        let g:TPCurrentFilter = substitute(g:TPCurrentFilter, string_to_remove, "", "g")
+    endfor 
+
+    call TPClearAndDisplayRetainPosition()    
+endf
+
+fun! TPUpdateFilterExcludedTagsAdd()
+
+
+    let tags = TPInputTags("add tag to exclude:")
+     
+    for tag in tags
+        let g:TPCurrentFilter .= printf(" -%s", tag)
+    endfor 
+
+    call TPClearAndDisplayRetainPosition()    
+    
+endf
+
+
+fun! TPUpdateFilterExcludedTagsRemove()
+
+    let tags = TPInputTags("remove tag from excluded tags: ")
+  
+    for tag in tags
+        let string_to_remove = printf("-%s", tag)
+        let g:TPCurrentFilter = substitute(g:TPCurrentFilter, string_to_remove, "", "g")
+    endfor 
+
+    call TPClearAndDisplayRetainPosition()
+endf
+
+
 fun! TPDisplayTasks(...)
    
     if a:0 == 0
@@ -78,10 +204,10 @@ fun! TPDisplayTasks(...)
     for task in tasks
 
         let tagsrep = join(task["tags"], " ") 
-        let line = printf("%04s | %1s | %5s | %-20s | %.80s", 
-                          \ task["id"], task["priority"],
-                          \ TPTruncateString(task["project"],20), 
-                          \ TPTruncateString(tagsrep, 20) , 
+        let line = printf("%04s | %1s | %s | %.80s", 
+                          \ task["id"], 
+                          \ task["priority"],
+                          \ TPTruncateAndPadString(tagsrep, 20, " ") , 
                           \ task["description"]) 
         call add(lines, line)
     endfor
@@ -111,7 +237,7 @@ fun! TPUnmapDefaultKeyMaps()
     "
     "but setting timeoutlen=0 affects the entire window, not the buffer only
     "setlocal timeoutlen=500
-    setlocal timeoutlen=300
+    setlocal timeoutlen=500
 
 
     "I need to capture the output of an ex command. is this really the
@@ -237,43 +363,6 @@ fun! TPUnmapDefaultKeyCodes()
     map <buffer> ^^  <Nop>
 endf
 
-fun! TPSetupKeyMappings()
-    call TPUnmapDefaultKeyMaps()
-    call TPUnmapDefaultKeyCodes()
-    
-    nmap <buffer> c   :call TPCompleteTask()<CR>
-  
-    nmap <buffer> u   :call TPUndo()<CR>
-    nmap <buffer> d   :call TPDeleteTask()<CR>
-    nmap <buffer> .  :call TPRepeatLastLineCommand()<CR>  
-
-    "Tag manipulations
-    nmap <buffer> t+  :call TPUpdateTaskTagsWithPrompts()<CR>
-    
-    
-    "Adding new tasks
-    nmap <buffer> ap   :call TPAddTaskWithPrompts()<CR> 
-    
-    "Filter maps
-    nmap <buffer> ft   :call TPDisplayTasksEnteredToday()<CR> 
-    nmap <buffer> fu   :call TPUpdateFilter()<CR>              
-    
-    nmap <buffer> ph   :call TPSetPriorityHigh()<CR>
-    nmap <buffer> pm   :call TPSetPriorityMedium()<CR>
-    nmap <buffer> pl   :call TPSetPriorityLow()<CR>
-    nmap <buffer> pn   :call TPSetPriorityNone()<CR>
-   
-    "punch in
-    nmap <buffer> pi :call TPStartTask()<CR>
-    
-    "punch out
-    nmap <buffer> po :call TPStopCurrentlyRunningTask()<CR>
-
-
-    "The only key map that is not buffer specific
-
-
-endf
 
 fun! TPClearTasksBuffer()
     execute '1,$d'
@@ -293,7 +382,7 @@ endf
 "this and most other functions only make sense when in the context of this
 "script but when this file gets loaded it will pollute the users namespace
 "anyway. Is there a way of making functions 'private' to a script?
-fun! TPGetTaskID()
+fun! TPGetIDOfTaskOnCurrentLine()
     return matchstr(getline('.'), '[1-9]\d*')
 endf
 
@@ -304,7 +393,7 @@ fun! TPIssueCommandAtCurrentLineAndRedisplay(template)
     let posline = line('.')
 
     "get the id of the task on the current line
-    let id = TPGetTaskID()
+    let id = TPGetIDOfTaskOnCurrentLine()
     "clear and redisplay our task
     call TPClearTasksBuffer()
     let cmd = printf(a:template, id)
@@ -371,9 +460,36 @@ fun! TPDisplayTasksEnteredToday()
     call TPClearAndDisplay()
 endf 
 
-fun! TPUpdateTaskTagsWithPrompts()
+fun! TPRemoveTagsWithPrompts()
+    let id = TPGetIDOfTaskOnCurrentLine()
 
-    let id = TPGetTaskID()
+    let donewithtags = 0
+    let tags = []
+    while !donewithtags
+    
+        "TODO the completion function here should really use the list of tags 
+        "TODO there's a lot of redundancy in these functions, refactor
+        let newtag = input("tag to remove: ", "", "custom,TPCustomCompleteTags")
+        if newtag == ""
+            let donewithtags = 1
+        else
+            call add(tags, newtag)  
+        endif
+    endwhile
+   
+    let tagrep = ""
+    for tag in tags
+        let tagrep .= " -" . tag
+    endfor 
+
+    let cmdtemplate = "task %s modify " . tagrep
+    "let g:lastcommand = cmdtemplate
+    call TPIssueCommandAtCurrentLineAndRedisplay(cmdtemplate) 
+endf
+
+fun! TPAddTagsWithPrompts()
+
+    let id = TPGetIDOfTaskOnCurrentLine()
 
     let donewithtags = 0
     let tags = []
@@ -398,8 +514,41 @@ fun! TPUpdateTaskTagsWithPrompts()
      
 endf
 
+
 fun! TPRepeatLastCommand()
     call TPIssueCommandAtCurrentLineAndRedisplay(g:lastcommand)
+endf
+
+fun! TPEscapeQuotes(str)
+    return substitute(a:str, '"', '\\"', "g") 
+endf
+
+fun! TPInputTaskUntilEmpty()
+
+    let result = []
+
+    "get tags keep asking until we return empty string
+    let donewithtags = 0
+    while !donewithtags
+        let newtag = input("tag: ", "", "custom,TPCustomCompleteTags")
+        if newtag == ""
+            let donewithtags = 1
+        else
+            call add(result, newtag)  
+        endif
+    endwhile
+
+    return result
+endf
+
+fun! TPGetTagRepresentation(tags)
+
+    let result = ""
+    for tag in a:tags
+        let result .= " +" . tag
+    endfor 
+    
+    return result 
 endf
 
 fun! TPAddTaskWithPrompts()
@@ -407,30 +556,20 @@ fun! TPAddTaskWithPrompts()
     let tags = []
 
     "get the description
-    let description = input("description: ")
+    let description = input("description:")
+    let description = TPEscapeQuotes(description)
     
     "get tags keep asking until we return empty string
-    let donewithtags = 0
-    while !donewithtags
-   
-        let newtag = input("tag: ", "", "custom,TPCustomCompleteTags")
-        if newtag == ""
-            let donewithtags = 1
-        else
-            call add(tags, newtag)  
-        endif
-    endwhile
-   
-    let tagrep = ""
-    for tag in tags
-        let tagrep .= " +" . tag
-    endfor 
+    let tags = TPInputTaskUntilEmpty()
+  
+    let tagreprentation = TPGetTagRepresentation(tags)
+
     
-    let repr = printf("add this task? '%s' | %s",  description, tagrep)
+    let repr = printf("add this task? '%s' | %s",  description, tagreprentation)
     
     let choice = confirm(repr, "yes\nabort", 1 )
     if choice == 1
-        let cmd = printf("task add %s %s", description, tagrep)
+        let cmd = printf("task add \"%s\" %s", description, tagreprentation)
         let waste = system(cmd)
     endif
 
@@ -440,35 +579,72 @@ endf
 
 
 fun! TPUndo()
-    let template =  "task rc.confirmation=no %s undo"
+    let template = "task rc.confirmation=no %s undo"
     "the %s shouldn't really be there 
     call TPIssueCommandAtCurrentLineAndRedisplay(template)
+endf
+
+fun! TPGetCurrentlyRunningTask()
+    "Get ONE currently running task
+    "We should not allow for more then one task to be running at the same time
+    "but that isn't controlled here
+
+    let tasks = TPGetTasks("start.any:")
+    if len(tasks) == 0
+        let task = {}
+    else
+        let task = tasks[0]
+    endif
+
+    return task 
 endf
 
 fun! TPStatusLine()
     
     let runningtaskstring="[No task running at the moment]"
-    if g:TPCurrentlyRunningTask != 0
-        let runningtask = TPGetTasks(g:TPCurrentlyRunningTask)[0]
-        let runningtaskstring=printf("[*running task* %s]", runningtask["description"])
+    
+    let g:TPCurrentlyRunningTask = TPGetCurrentlyRunningTask()
+
+    if g:TPCurrentlyRunningTask != {}
+        let runningtaskstring=printf("[*running task* %s]", g:TPCurrentlyRunningTask["description"])
     endif
     return printf("[*filter* %s]%s[%s]",  g:TPCurrentFilter, runningtaskstring,  g:TPLastMessage)
+endf
 
+fun! TPStopAllRunningTasks()
+    "Indisriminately stop all active task, (shouldn't be more then one)
+    let task = TPGetCurrentlyRunningTask()
+    while task != {}
+        let cmd = "task " . task["uuid"] . " stop"
+        let waste = system(cmd)
+        let task = TPGetCurrentlyRunningTask()
+    endwhile
 
 endf
 
 fun! TPStartTask()
-    let id = TPGetTaskID()
+    "stop any other running tasks
+    call TPStopAllRunningTasks()
 
+    "And start the task on the current line
+    let id = TPGetIDOfTaskOnCurrentLine()
     let cmd  =  "task " . id . " start"
-    let g:TPCurrentlyRunningTask = id
     let waste = system(cmd)
 endf
 
-fun! TPStopCurrentlyRunningTask()
-    let cmd = "task " . g:TPCurrentlyRunningTask . " stop"
-    let g:TPCurrentlyRunningTask = 0
-    let waste = system(cmd)
+
+fun! TPSetupFilterDefault()
+    let g:TPCurrentFilter = "status:pending -somedaymaybe -notthisweek"
+endf
+
+
+fun! TPSetupFilterTodoToday()
+    let g:TPCurrentFilter = "status:pending -somedaymaybe -notthisweek +todotoday"
+endf
+
+
+fun! TPSetupFilterGTD()
+    let g:TPCurrentFilter = "status:pending due:today "
 endf
 
 fun! TPInitialize(filter)
@@ -477,9 +653,10 @@ fun! TPInitialize(filter)
     "
     "append incoming filter to our default global filter
 
-    let g:TPCurrentFilter =  g:TPDefaultFilter . " " .  a:filter
+    call TPSetupFilterDefault()
+
     let g:TPLastMessage = "Welcome to Taskpacifist"
-    let g:TPCurrentlyRunningTask = 0 
+    let g:TPCurrentlyRunningTask = TPGetCurrentlyRunningTask()
     call TPSetUpTasksBuffer()
     call TPSetupKeyMappings()    
     call TPDisplayTasks(g:TPCurrentFilter)
@@ -490,6 +667,76 @@ fun! TPInitialize(filter)
     silent echom g:TPLastMessage
 endf
 
-let g:TPDefaultFilter = "status:pending -somedaymaybe"
+fun! TPSetGTDFilterAndRedisplay()
+    call TPSetupFilterGTD()
+    call TPClearAndDisplayRetainPosition()
+endf
+
+fun! TPSetDefaultFilterAndRedisplay()
+    call TPSetupFilterDefault()
+    call TPClearAndDisplayRetainPosition()
+endf
+
+
+
+fun! TPSetTodoTodayFilterAndRedisplay()
+    call TPSetupFilterTodoToday()
+    call TPClearAndDisplayRetainPosition()
+endf
+
+fun! TPSetupKeyMappings()
+    call TPUnmapDefaultKeyMaps()
+    call TPUnmapDefaultKeyCodes()
+    
+    nmap <buffer> c   :call TPCompleteTask()<CR>
+  
+    nmap <buffer> u   :call TPUndo()<CR>
+    nmap <buffer> d   :call TPDeleteTask()<CR>
+    nmap <buffer> .  :call TPRepeatLastLineCommand()<CR>  
+
+    "Tag manipulations
+    nmap <buffer> t+  :call TPAddTagsWithPrompts()<CR>
+    nmap <buffer> t-  :call TPRemoveTagsWithPrompts()<CR>
+
+    
+    "Adding new tasks
+    nmap <buffer> +   :call TPAddTaskWithPrompts()<CR> 
+    nmap <buffer> ap   :call TPAddTaskWithPrompts()<CR> 
+    
+    "Filter maps
+    "nmap <buffer> ft   :call TPDisplayTasksEnteredToday()<CR> 
+    nmap <buffer> ft   :call TPSetTodoTodayFilterAndRedisplay()<CR>
+
+     
+    nmap <buffer> fe+  :call TPUpdateFilterExcludedTagsAdd()<CR>
+    nmap <buffer> fe-  :call TPUpdateFilterExcludedTagsRemove()<CR>
+
+    nmap <buffer> fr+  :call TPUpdateFilterRequiredTagsAdd()<CR>
+    nmap <buffer> fr-  :call TPUpdateFilterRequiredTagsRemove()<CR>
+    
+    nmap <buffer> fd   :call TPSetDefaultFilterAndRedisplay()<CR>
+    nmap <buffer> fg   :call TPSetGTDFilterAndRedisplay()<CR>
+
+    "nmap <buffer> fu   :call TPUpdateFilter()<CR>              
+    
+    nmap <buffer> ph   :call TPSetPriorityHigh()<CR>
+    nmap <buffer> pm   :call TPSetPriorityMedium()<CR>
+    nmap <buffer> pl   :call TPSetPriorityLow()<CR>
+    nmap <buffer> pn   :call TPSetPriorityNone()<CR>
+   
+    "punch in
+    nmap <buffer> pi :call TPStartTask()<CR>
+    
+    "punch out
+    nmap <buffer> po :call TPStopAllRunningTasks()<CR>
+
+
+    "The only key map that is not buffer specific
+
+
+endf
+
+
+"let g:TPDefaultFilter = "status:pending -somedaymaybe"
 
 nmap TP :execute TPInitialize("")<CR>

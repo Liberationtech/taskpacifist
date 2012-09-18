@@ -19,30 +19,14 @@ Feature wishlist
 really easy
 -----------
 
-+ syntax highlighting 
-  
-  + make id darker
-  + make | darker
-  + highlight current line
-
-+ Delete a tag (autocomplete) from current task
-
-+ Delete same tag as last time
-
-+ display tags in list
-
- 
+Moved to 
 
 
 a little harder
 ---------------
 
-+ display current filter in mode line
-
 + Make task dependent on other task
   
-+ Add task that fulfills currently active filter (for project and tags at least)
-
 + Add tag todotoday_<todaysdate> to a task (eg todotoday_20120829)
 
 + List all tasks tagged todotoday_<todaysdate>
